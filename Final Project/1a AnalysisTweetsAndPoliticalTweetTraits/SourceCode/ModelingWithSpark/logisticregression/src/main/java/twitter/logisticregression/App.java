@@ -48,7 +48,7 @@ public class App
     	// Logistic Regression
     	LogisticRegressionModel lrModel = new LogisticRegression().fit(trainingData);
     	
-    	Dataset<Row> logPredictions = lrModel.transform(testData);
+    	evaluateModel("Logistic Regression", lrModel.transform(testData));
         
     	// Decision Tree
         DecisionTreeClassificationModel dtModel = new DecisionTreeClassifier()
@@ -56,7 +56,7 @@ public class App
 										          .setFeaturesCol("features")
 										          .fit(trainingData);       
 
-        Dataset<Row> dtPredictions = dtModel.transform(testData); 
+        evaluateModel("Decision Tree", dtModel.transform(testData));
         
         // Random Forest
         RandomForestClassificationModel rfModel = new RandomForestClassifier()
@@ -64,12 +64,12 @@ public class App
 											        .setFeaturesCol("features")
 											        .fit(trainingData);
         
-        Dataset<Row> rfPredictions = rfModel.transform(testData);
+        evaluateModel("Random Forest", rfModel.transform(testData));
         
         // Naive Bayes
         NaiveBayesModel nbModel = new NaiveBayes().fit(trainingData);
         
-        Dataset<Row> nbPredictions = nbModel.transform(testData);
+    	evaluateModel("Naive Bayes", nbModel.transform(testData));
         
         // Boost
         GBTClassificationModel gbtModel = new GBTClassifier()
@@ -77,27 +77,37 @@ public class App
 									        .setFeaturesCol("features")
 									        .fit(trainingData);
         
-        Dataset<Row> gbtPredictions = gbtModel.transform(testData);
-        
-        // AUC Calculations
-        BinaryClassificationEvaluator AUCEvaluator = new BinaryClassificationEvaluator()
-      		  .setLabelCol("label")
-      		  .setRawPredictionCol("prediction")
-      		  .setMetricName("areaUnderROC");
-
-        System.out.println("Logistic Regression Model:");
-        System.out.println("AUC = " + AUCEvaluator.evaluate(logPredictions));
-      
-        System.out.println("\nDecision Tree Model:");
-        System.out.println("AUC = " + AUCEvaluator.evaluate(dtPredictions));
-        
-        System.out.println("\nRandom Forest Model:");
-        System.out.println("AUC = " + AUCEvaluator.evaluate(rfPredictions));
-        
-        System.out.println("\nNaive Bayes Model:");
-        System.out.println("AUC = " + AUCEvaluator.evaluate(nbPredictions));
-        
-        System.out.println("\nGradient-Boosted Tree Model:");
-        System.out.println("AUC = " + AUCEvaluator.evaluate(gbtPredictions));
+        evaluateModel("Gradient-Boosted Tree", gbtModel.transform(testData));
+    }
+    
+    private static void evaluateModel(String name, Dataset<Row> predication) {
+    	BinaryClassificationEvaluator AUCEvaluator = new BinaryClassificationEvaluator()
+        		  .setLabelCol("label")
+        		  .setRawPredictionCol("prediction")
+        		  .setMetricName("areaUnderROC");
+    	
+    	long total = predication.count();
+    	long TP = predication.filter("label = 1 AND prediction = 1").count();
+    	long FN = predication.filter("label = 1 AND prediction = 0").count();
+    	long FP = predication.filter("label = 0 AND prediction = 1").count();
+    	long TN = total - TP - FN - FP;
+    	double accuracy = (double)(TP + TN) / total;
+    	double precision = TP / (double)(TP + FP);
+    	double sensitivity = TP / (double)(TP + FN);
+    	double specificity = TN / (double)(TN + FP);
+    	double f1 = 2 * ((precision * sensitivity) / (precision + sensitivity));
+    	
+    	System.out.println("\n" + name + " Model:");
+    	
+    	System.out.println("\nConfusion Matrix:");
+    	System.out.println("TP = " + TP + "\tFP = " + FP);
+    	System.out.println("FN = " + FN + "\tTN = " + TN);
+    	
+    	System.out.println("\nAccuracy = " + accuracy);
+    	System.out.println("Precision = " + precision);
+    	System.out.println("Sensitivity = " + sensitivity);
+    	System.out.println("Specificity = " + specificity);
+    	System.out.println("F1 Score = " + f1);
+    	System.out.println("AUC = " + AUCEvaluator.evaluate(predication));
     }
 }
